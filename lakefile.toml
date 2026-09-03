@@ -1,0 +1,14 @@
+name = "sp4-formalization"
+version = "0.1.0"
+defaultTargets = ["Sp4"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.33.1"
+
+[[lean_lib]]
+name = "Sp4"
+
+[leanOptions]
+autoImplicit = false

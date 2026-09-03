@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+lake build
+lake env lean AxiomAudit.lean
+lake env lean Scratch.lean
+
+if rg -n '\b(sorry|admit)\b' --glob '*.lean' .; then
+  echo 'error: unresolved Lean proof placeholder found' >&2
+  exit 1
+fi
+
+if rg -n '\bnative_decide\b' --glob '*.lean' .; then
+  echo 'error: native_decide bypasses kernel reduction; use decide or an explicit proof' >&2
+  exit 1
+fi
+
+if rg -n '^\s*unsafe\b' --glob '*.lean' .; then
+  echo 'error: unsafe Lean declaration found in the formal proof sources' >&2
+  exit 1
+fi
+
+if rg -n '\baxiom\b' --glob '*.lean' \
+    --glob '!Sp4/Cohomology/ExternalInputs.lean' .; then
+  echo 'error: axiom outside the literature interface file' >&2
+  exit 1
+fi
+
+expected_axioms=(
+  polishSpace_of_lcsc_topologicalGroup
+  measure_zero_zeroSet_of_nontrivial_complex_analytic_piGaussian
+  quasiMeasurePreserving_normalizedOpenGaussian_of_submersion
+  absolutelyContinuous_map_normalizedOpenGaussian_of_surjective_submersion
+  projectiveGaussian_linearEquiv_quasiMeasurePreserving
+  measure_equivalent_haar_prod_of_left_quasiInvariant
+  exists_smoothFibreKernel_normalizedOpenGaussian_of_submersions
+)
+
+mapfile -t declared_axioms < <(
+  sed -nE 's/^[[:space:]]*axiom[[:space:]]+([A-Za-z0-9_]+).*/\1/p' \
+    Sp4/Cohomology/ExternalInputs.lean
+)
+
+if [[ "${declared_axioms[*]}" != "${expected_axioms[*]}" ]]; then
+  echo 'error: literature axiom allowlist changed' >&2
+  echo "expected: ${expected_axioms[*]}" >&2
+  echo "actual:   ${declared_axioms[*]}" >&2
+  exit 1
+fi
